@@ -279,8 +279,10 @@ public class SpringApplication {
 		this.resourceLoader = resourceLoader;
 		Assert.notNull(primarySources, "PrimarySources must not be null");
 		this.primarySources = new LinkedHashSet<>(Arrays.asList(primarySources));
+		// 通过当前线程的类加载器判断加载的类有没有实现web接口啥的, 一共有3种, 不是web, 普通web, 响应式web
 		this.webApplicationType = WebApplicationType.deduceFromClasspath();
 		this.bootstrappers = new ArrayList<>(getSpringFactoriesInstances(Bootstrapper.class));
+		// 这个时候加载 META-INF/spring.factories 对应的类了, 下面两个方法都是
 		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class));
 		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
 		this.mainApplicationClass = deduceMainApplicationClass();
@@ -308,28 +310,40 @@ public class SpringApplication {
 	 * @return a running {@link ApplicationContext}
 	 */
 	public ConfigurableApplicationContext run(String... args) {
+		// 这个就是计时	用的
 		StopWatch stopWatch = new StopWatch();
 		stopWatch.start();
 		DefaultBootstrapContext bootstrapContext = createBootstrapContext();
 		ConfigurableApplicationContext context = null;
+		// 配置 headless 属性
 		configureHeadlessProperty();
+		// 获得 SpringApplicationRunListener(从META-INF 的factories文件获取) 的数组, 下面那个方法是发布消息
 		SpringApplicationRunListeners listeners = getRunListeners(args);
 		listeners.starting(bootstrapContext, this.mainApplicationClass);
 		try {
+			// 创建  ApplicationArguments 对象
 			ApplicationArguments applicationArguments = new DefaultApplicationArguments(args);
+			// 加载属性配置。执行完成后，所有的 environment 的属性都会加载进来，包括 application.properties 和外部的属性配置
 			ConfigurableEnvironment environment = prepareEnvironment(listeners, bootstrapContext, applicationArguments);
 			configureIgnoreBeanInfo(environment);
+			// 打印 Spring Banner
 			Banner printedBanner = printBanner(environment);
+			// 创建 Spring 容器
 			context = createApplicationContext();
 			context.setApplicationStartup(this.applicationStartup);
+			// 主要是调用所有初始化类的 initialize 方法
 			prepareContext(bootstrapContext, context, environment, listeners, applicationArguments, printedBanner);
+			// 初始化 Spring 容器 就是调用context的refresh方法
 			refreshContext(context);
+			// 执行 Spring 容器的初始化的后置逻辑。默认实现为空
 			afterRefresh(context, applicationArguments);
 			stopWatch.stop();
 			if (this.logStartupInfo) {
 				new StartupInfoLogger(this.mainApplicationClass).logStarted(getApplicationLog(), stopWatch);
 			}
+			// 通知 SpringApplicationRunListener 的数组，Spring 容器启动完成
 			listeners.started(context);
+			// 调用 ApplicationRunner 或者 CommandLineRunner 的运行方法
 			callRunners(context, applicationArguments);
 		}
 		catch (Throwable ex) {
@@ -338,6 +352,7 @@ public class SpringApplication {
 		}
 
 		try {
+			// 通知 SpringApplicationRunListener 的数组，Spring 容器运行中
 			listeners.running(context);
 		}
 		catch (Throwable ex) {
@@ -387,7 +402,9 @@ public class SpringApplication {
 			ApplicationArguments applicationArguments, Banner printedBanner) {
 		context.setEnvironment(environment);
 		postProcessApplicationContext(context);
+		// 这个时候所有注册的ApplicationContextInitializer的类都会调用初始化方法
 		applyInitializers(context);
+		// 发送通知
 		listeners.contextPrepared(context);
 		bootstrapContext.close(context);
 		if (this.logStartupInfo) {
@@ -410,6 +427,7 @@ public class SpringApplication {
 		// Load the sources
 		Set<Object> sources = getAllSources();
 		Assert.notEmpty(sources, "Sources must not be empty");
+		// 这个时候从resource中读取数据, 并且变成BeanDefinition
 		load(context, sources.toArray(new Object[0]));
 		listeners.contextLoaded(context);
 	}

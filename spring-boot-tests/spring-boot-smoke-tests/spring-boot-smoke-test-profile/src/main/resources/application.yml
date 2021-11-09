@@ -1,6 +1,9 @@
+spring:
+  profiles:
+    active:
+      goodbye
 name: Phil
 
 ---
-
 spring.config.activate.on-profile: goodbye | dev
 name: Everyone

@@ -114,18 +114,24 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 	 * of the importing {@link Configuration @Configuration} class.
 	 * @param annotationMetadata the annotation metadata of the configuration class
 	 * @return the auto-configurations that should be imported
+	 * 这个是获取所有的应该自动装配的数组
 	 */
 	protected AutoConfigurationEntry getAutoConfigurationEntry(AnnotationMetadata annotationMetadata) {
 		if (!isEnabled(annotationMetadata)) {
 			return EMPTY_ENTRY;
 		}
+		// 获取注解的属性
 		AnnotationAttributes attributes = getAttributes(annotationMetadata);
 		List<String> configurations = getCandidateConfigurations(annotationMetadata, attributes);
+		// 移除重复的配置类
 		configurations = removeDuplicates(configurations);
 		Set<String> exclusions = getExclusions(annotationMetadata, attributes);
+		// 删除被exclude的类
 		checkExcludedClasses(configurations, exclusions);
 		configurations.removeAll(exclusions);
+		// 从configuration排除不符合规则的类
 		configurations = getConfigurationClassFilter().filter(configurations);
+		// 触发自动配置类引入完成的事件
 		fireAutoConfigurationImportEvents(configurations, exclusions);
 		return new AutoConfigurationEntry(configurations, exclusions);
 	}
